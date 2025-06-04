@@ -30,6 +30,8 @@ class DataIngestion:
         '.csv': 'csv',
         '.xlsx': 'xlsx',
         '.xls': 'xlsx',
+        '.mdb': 'mdb',
+        '.accdb': 'mdb'
     }
 
     def __init__(self, validation_rules: Optional[List[ValidationRule]] = None):
@@ -94,7 +96,7 @@ class DataIngestion:
             file_path: Path to the file
 
         Returns:
-            Adapter type string ('file' or 'xlsx')
+            Adapter type string ('file', 'xlsx', or 'mdb')
 
         Raises:
             ValueError: If file extension is not supported
@@ -104,6 +106,8 @@ class DataIngestion:
             return 'xlsx'
         elif ext in ['.json', '.csv']:
             return 'file'
+        elif ext in ['.mdb', '.accdb']:
+            return 'mdb'
         else:
             raise ValueError(f"Unsupported file extension: {ext}")
 
@@ -126,13 +130,17 @@ class DataIngestion:
             adapter_type = self._get_adapter_type(file_path)
 
             # Configure adapter for the file
-            adapter = create_adapter(
-                adapter_type,
-                {
-                    'path': str(file_path),
-                    'format': source_type
-                }
-            )
+            adapter_config = {
+                'path': str(file_path),
+                'format': source_type
+            }
+
+            # Add table name for MDB files if not provided
+            if adapter_type == 'mdb' and 'table' not in adapter_config:
+                # Default to first table in the database
+                adapter_config['table'] = 'Table1'
+
+            adapter = create_adapter(adapter_type, adapter_config)
 
             # Fetch and transform data
             adapter_data = adapter.fetch()

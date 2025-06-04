@@ -9,13 +9,14 @@ from .rest import RESTAdapter
 from .file import FileAdapter
 from .database import DatabaseAdapter
 from .xlsx import XLSXAdapter
+from .mdb import MDBAdapter
 
 
 def create_adapter(source_type: str, config: Dict[str, Any]) -> BaseAdapter:
     """Factory function to create appropriate adapter.
 
     Args:
-        source_type: Type of data source ('rest', 'file', 'database', 'xlsx')
+        source_type: Type of data source ('rest', 'file', 'database', 'xlsx', 'mdb')
         config: Configuration for the adapter
 
     Returns:
@@ -28,7 +29,8 @@ def create_adapter(source_type: str, config: Dict[str, Any]) -> BaseAdapter:
         'rest': RESTAdapter,
         'file': FileAdapter,
         'database': DatabaseAdapter,
-        'xlsx': XLSXAdapter
+        'xlsx': XLSXAdapter,
+        'mdb': MDBAdapter
     }
 
     if source_type not in adapters:

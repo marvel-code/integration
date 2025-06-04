@@ -7,6 +7,7 @@ from .rest import RESTAdapter
 from .file import FileAdapter
 from .database import DatabaseAdapter
 from .xlsx import XLSXAdapter
+from .mdb import MDBAdapter
 from .factory import create_adapter
 
 __all__ = [
@@ -16,5 +17,6 @@ __all__ = [
     'FileAdapter',
     'DatabaseAdapter',
     'XLSXAdapter',
+    'MDBAdapter',
     'create_adapter',
 ]

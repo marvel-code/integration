@@ -20,6 +20,7 @@ class ProcessedData(TypedDict):
     data: Dict[str, Any]
     source_path: str
     source_type: str
+    output_path: str
 
 
 class RawDataProcessor:
@@ -46,7 +47,7 @@ class RawDataProcessor:
             validation_rules: Optional list of validation rules to apply
         """
         self.storage_dir = Path(storage_dir)
-        self.output_dir = Path(output_dir)
+        self.output_dir = Path(output_dir) / 'raw'
         self.validator = DataValidator(validation_rules or [])
 
         # Create output directory if it doesn't exist
@@ -89,6 +90,26 @@ class RawDataProcessor:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         return output_path
 
+    def _get_adapter_type(self, file_path: Path) -> str:
+        """Determine the appropriate adapter type based on file extension.
+
+        Args:
+            file_path: Path to the file
+
+        Returns:
+            Adapter type string ('file' or 'xlsx')
+
+        Raises:
+            ValueError: If file extension is not supported
+        """
+        ext = file_path.suffix.lower()
+        if ext in ['.xlsx', '.xls']:
+            return 'xlsx'
+        elif ext in ['.json', '.csv']:
+            return 'file'
+        else:
+            raise ValueError(f"Unsupported file extension: {ext}")
+
     def _process_file(self, file_path: Path) -> Optional[ProcessedData]:
         """Process a single file.
 
@@ -104,9 +125,12 @@ class RawDataProcessor:
             return None
 
         try:
+            # Get appropriate adapter type
+            adapter_type = self._get_adapter_type(file_path)
+
             # Configure adapter for the file
             adapter = create_adapter(
-                'file' if source_type in ['json', 'csv'] else 'xlsx',
+                adapter_type,
                 {
                     'path': str(file_path),
                     'format': source_type
@@ -129,11 +153,13 @@ class RawDataProcessor:
             output_path = self._create_output_path(file_path)
             xlsx_adapter = create_adapter('xlsx', {'path': str(output_path)})
             xlsx_adapter.save(transformed_data['data'], output_path)
+            logger.info(f"Saved processed data to: {output_path}")
 
             return {
                 'data': transformed_data,
                 'source_path': str(file_path),
-                'source_type': source_type
+                'source_type': source_type,
+                'output_path': str(output_path)
             }
 
         except Exception as e:

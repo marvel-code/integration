@@ -38,11 +38,13 @@ class FileAdapter(BaseAdapter):
 
         if self.config['format'] == 'json':
             with open(path, 'r', encoding='utf-8') as f:
-                return {'data': json.load(f)}
+                raw_data = json.load(f)
         elif self.config['format'] == 'csv':
             data = []
             with open(path, 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     data.append(dict(row))
-            return {'data': data}
+            raw_data = data
+
+        return self.transform(raw_data)

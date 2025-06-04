@@ -146,14 +146,14 @@ class XLSXAdapter(BaseAdapter):
             table_df = table_df.dropna(how='all').reset_index(drop=True)
 
             # Convert DataFrame to dictionary
-            data = {
+            raw_data = {
                 'columns': table_df.columns.tolist(),
                 'records': table_df.to_dict('records'),
                 'header_data': header_data
             }
 
             # Add metadata
-            data['metadata'] = {
+            raw_data['metadata'] = {
                 'sheet_name': self.config['sheet_name'],
                 'row_count': len(table_df),
                 'column_count': len(table_df.columns),
@@ -163,7 +163,7 @@ class XLSXAdapter(BaseAdapter):
                 'header_data': header_data
             }
 
-            return data
+            return self.transform(raw_data)
 
         except Exception as e:
             logger.error(f"Error reading Excel file {path}: {str(e)}")

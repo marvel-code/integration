@@ -135,11 +135,10 @@ class DataIngestion:
             )
 
             # Fetch and transform data
-            raw_data = adapter.fetch()
-            transformed_data = adapter.transform(raw_data)
+            adapter_data = adapter.fetch()
 
             # Validate data
-            validation_errors = self.validator.validate(transformed_data)
+            validation_errors = self.validator.validate(adapter_data)
             if validation_errors:
                 error_msg = "\n".join(validation_errors)
                 logger.error(
@@ -147,7 +146,7 @@ class DataIngestion:
                 return None
 
             return {
-                'data': transformed_data,
+                'data': adapter_data,
                 'source_path': str(file_path),
                 'source_type': source_type
             }

@@ -40,7 +40,8 @@ class RESTAdapter(BaseAdapter):
                 timeout=self.config.get('timeout', 30)
             )
             response.raise_for_status()
-            return response.json()
+            raw_data = response.json()
+            return self.transform(raw_data)
         except requests.RequestException as e:
             logger.error(
                 f"Failed to fetch data from {self.config['url']}: {str(e)}")

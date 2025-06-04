@@ -3,9 +3,10 @@ XLSX adapter module for handling Excel files.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from pathlib import Path
 import pandas as pd
+import re
 
 from .base import BaseAdapter
 
@@ -62,6 +63,48 @@ class XLSXAdapter(BaseAdapter):
         else:
             raise ValueError(f"Unsupported Excel file extension: {ext}")
 
+    def _extract_header_data(self, df: pd.DataFrame) -> Tuple[List[str], int]:
+        """Extract data from column B above the table and find table start row.
+
+        Args:
+            df: DataFrame containing the Excel data
+
+        Returns:
+            Tuple of (header_data, table_start_row)
+        """
+        header_data = []
+        table_start_row = 0
+
+        # Check if pattern matches (a1 empty, b1 not empty)
+        if pd.isna(df.iloc[0, 0]) and not pd.isna(df.iloc[0, 1]):
+            # Extract data from column B until we find a row where both A and B are not empty
+            for idx, row in df.iterrows():
+                if pd.isna(row.iloc[0]) and not pd.isna(row.iloc[1]):
+                    header_data.append(str(row.iloc[1]).strip())
+                else:
+                    table_start_row = idx
+                    break
+
+            # If we found header data, we need to skip those rows
+            if header_data:
+                table_start_row = len(header_data)
+
+        return header_data, table_start_row
+
+    def _clean_filename(self, text: str) -> str:
+        """Clean text to be used in filename.
+
+        Args:
+            text: Text to clean
+
+        Returns:
+            Cleaned text safe for use in filenames
+        """
+        # Remove special characters and replace spaces with underscores
+        cleaned = re.sub(r'[^\w\s-]', '', text)
+        cleaned = re.sub(r'[-\s]+', '_', cleaned)
+        return cleaned.strip('-_')
+
     def fetch(self) -> Dict[str, Any]:
         """Fetch data from Excel file.
 
@@ -84,22 +127,40 @@ class XLSXAdapter(BaseAdapter):
             df = pd.read_excel(
                 path,
                 sheet_name=self.config['sheet_name'],
-                engine=engine
+                engine=engine,
+                header=None  # Don't use first row as header
             )
+
+            # Extract header data and find table start
+            header_data, table_start_row = self._extract_header_data(df)
+
+            # Skip header rows and get table data
+            table_df = df.iloc[table_start_row:].copy()
+
+            # Use first non-empty row as header
+            header_row = table_df.dropna(how='all').iloc[0]
+            table_df = table_df.iloc[1:]  # Skip the header row
+            table_df.columns = header_row
+
+            # Drop empty rows and reset index
+            table_df = table_df.dropna(how='all').reset_index(drop=True)
 
             # Convert DataFrame to dictionary
             data = {
-                'columns': df.columns.tolist(),
-                'records': df.to_dict('records')
+                'columns': table_df.columns.tolist(),
+                'records': table_df.to_dict('records'),
+                'header_data': header_data
             }
 
             # Add metadata
             data['metadata'] = {
                 'sheet_name': self.config['sheet_name'],
-                'row_count': len(df),
-                'column_count': len(df.columns),
+                'row_count': len(table_df),
+                'column_count': len(table_df.columns),
                 'file_type': path.suffix.lower(),
-                'engine_used': engine
+                'engine_used': engine,
+                'table_start_row': table_start_row,
+                'header_data': header_data
             }
 
             return data

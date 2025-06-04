@@ -68,14 +68,6 @@ def main() -> None:
         # Process all files
         results = processor.process()
 
-        # Log results
-        logger.info(f"Successfully processed {len(results)} files")
-        for result in results:
-            logger.info(
-                f"Processed {result['source_path']} "
-                f"(type: {result['source_type']})"
-            )
-
     except Exception as e:
         logger.error(f"Error processing data: {str(e)}")
         sys.exit(1)

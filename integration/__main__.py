@@ -10,8 +10,6 @@ from typing import Dict, Any
 
 from .raw import (
     RawDataProcessor,
-    ValidationRule,
-    DataValidator
 )
 
 
@@ -21,27 +19,6 @@ def setup_logging() -> None:
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-
-
-def create_validation_rules() -> list[ValidationRule]:
-    """Create validation rules for the data."""
-    return [
-        ValidationRule(
-            "source",
-            DataValidator.is_not_empty,
-            "Source field cannot be empty"
-        ),
-        ValidationRule(
-            "timestamp",
-            DataValidator.is_not_empty,
-            "Timestamp field cannot be empty"
-        ),
-        ValidationRule(
-            "data",
-            lambda x: isinstance(x, dict) and bool(x),
-            "Data must be a non-empty dictionary"
-        )
-    ]
 
 
 def main() -> None:
@@ -61,13 +38,11 @@ def main() -> None:
     processor = RawDataProcessor(
         storage_dir=input_dir,
         output_dir=output_dir,
-        validation_rules=create_validation_rules()
     )
 
     try:
         # Process all files
         results = processor.process()
-
     except Exception as e:
         logger.error(f"Error processing data: {str(e)}")
         sys.exit(1)

@@ -42,7 +42,7 @@ class RawDataStorage:
             return Path(file_path.name)
 
     def _create_output_path(self, source_path: Path, header_data: Optional[List[str]] = None) -> Path:
-        """Create output path maintaining directory structure.
+        """Create output path with path encoded in filename.
 
         Args:
             source_path: Path to the source file
@@ -53,8 +53,23 @@ class RawDataStorage:
         """
         # Get the full relative path from the input directory
         relative_path = self._get_relative_path(source_path, self.input_dir)
-        parent_dir = relative_path.parent
-        stem = relative_path.stem
+
+        # Convert the path to a filename-safe string
+        # Replace path separators and other unsafe characters with underscores
+        path_as_filename = str(relative_path).replace(
+            '/', '_').replace('\\', '_')
+        # Remove the original extension from the path
+        path_as_filename = path_as_filename.rsplit(
+            '.', 1)[0] if '.' in path_as_filename else path_as_filename
+
+        # Clean up any double underscores and ensure it's filename-safe
+        path_as_filename = ''.join(
+            c if c.isalnum() or c in '_-' else '_' for c in path_as_filename)
+        # Remove consecutive underscores
+        while '__' in path_as_filename:
+            path_as_filename = path_as_filename.replace('__', '_')
+        # Remove leading/trailing underscores
+        path_as_filename = path_as_filename.strip('_')
 
         # If we have header data, use it to create a suffix
         if header_data:
@@ -66,12 +81,11 @@ class RawDataStorage:
             # Limit suffix length and clean up
             suffix = suffix[:50].strip('_-')
             if suffix:
-                stem = f"{stem}_{suffix}"
+                path_as_filename = f"{path_as_filename}_{suffix}"
                 logger.info(f"Using header data for filename: {suffix}")
 
-        # Create the full output path maintaining the directory structure
-        output_path = self.output_dir / parent_dir / f"{stem}.xlsx"
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        # Create the output path directly in the raw directory (no subdirectories)
+        output_path = self.output_dir / f"{path_as_filename}.xlsx"
         return output_path
 
     def save_processed_data(self, data: Dict[str, Any], source_path: Path) -> Optional[Path]:
@@ -119,7 +133,9 @@ class RawDataStorage:
         Returns:
             List of file paths
         """
-        return list(self.output_dir.glob('*' if prefix is None else f'*{prefix}*'))
+        # Search for files directly in the output directory (flat structure)
+        pattern = f'{prefix}*' if prefix else '*'
+        return [f for f in self.output_dir.glob(pattern) if f.is_file()]
 
     def load_stored_data(self, file_path: Union[str, Path]) -> Dict[str, Any]:
         """Load data from storage.

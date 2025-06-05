@@ -1,14 +1,10 @@
 """
-Raw data handling layer.
-This layer is responsible for:
-- Initial data ingestion
-- Basic data validation
-- Raw data storage
-- Data format conversion
+Raw data processing module.
+
+- Ingestion, storage, and adapter management
 """
 
 from .ingestion import DataIngestion
-from .validation import DataValidator, ValidationRule
 from .storage import RawDataStorage
 from .adapters import (
     BaseAdapter,
@@ -22,8 +18,6 @@ from .core import RawDataProcessor
 
 __all__ = [
     'DataIngestion',
-    'DataValidator',
-    'ValidationRule',
     'RawDataStorage',
     'BaseAdapter',
     'RESTAdapter',

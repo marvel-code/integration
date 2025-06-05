@@ -8,7 +8,6 @@ from pathlib import Path
 from collections import defaultdict
 
 from .ingestion import DataIngestion, ProcessedData
-from .validation import ValidationRule
 from .storage import RawDataStorage
 
 logger = logging.getLogger(__name__)
@@ -20,18 +19,16 @@ class RawDataProcessor:
     def __init__(
         self,
         storage_dir: Union[str, Path],
-        output_dir: Union[str, Path],
-        validation_rules: Optional[List[ValidationRule]] = None
+        output_dir: Union[str, Path]
     ):
         """Initialize the raw data processor.
 
         Args:
             storage_dir: Directory containing raw data files
             output_dir: Directory for storing processed data
-            validation_rules: Optional list of validation rules to apply
         """
         self.storage_dir = Path(storage_dir)
-        self.ingestion = DataIngestion(validation_rules)
+        self.ingestion = DataIngestion()
         self.storage = RawDataStorage(output_dir, storage_dir)
 
     def process(self) -> List[ProcessedData]:

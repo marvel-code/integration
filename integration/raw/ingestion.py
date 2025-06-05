@@ -9,7 +9,6 @@ import json
 import csv
 
 from .adapters import create_adapter, BaseAdapter
-from .validation import DataValidator, ValidationRule
 
 logger = logging.getLogger(__name__)
 
@@ -34,13 +33,8 @@ class DataIngestion:
         '.accdb': 'mdb'
     }
 
-    def __init__(self, validation_rules: Optional[List[ValidationRule]] = None):
-        """Initialize the data ingestion handler.
-
-        Args:
-            validation_rules: Optional list of validation rules to apply
-        """
-        self.validator = DataValidator(validation_rules or [])
+    def __init__(self):
+        pass
 
     @staticmethod
     def load_json(file_path: Union[str, Path]) -> Dict[str, Any]:
@@ -144,14 +138,6 @@ class DataIngestion:
 
             # Fetch and transform data
             adapter_data = adapter.fetch()
-
-            # Validate data
-            validation_errors = self.validator.validate(adapter_data)
-            if validation_errors:
-                error_msg = "\n".join(validation_errors)
-                logger.error(
-                    f"Validation failed for {file_path}:\n{error_msg}")
-                return None
 
             return {
                 'data': adapter_data,

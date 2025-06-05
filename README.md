@@ -108,7 +108,7 @@ By default, the script processes files from `data/input` and saves results to `d
 
 ## Raw module
 
-- [ ] MDB adapter fetches all tables from mdb file.
+- [x] MDB adapter fetches all tables from mdb file.
 - [ ] Source tables saved to raw/
 - [ ]
 - [ ]

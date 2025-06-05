@@ -41,85 +41,61 @@ class RawDataStorage:
             # If file_path is not relative to base_dir, return just the filename
             return Path(file_path.name)
 
-    def _create_output_path(self, source_path: Path, header_data: Optional[List[str]] = None) -> Path:
-        """Create output path with path encoded in filename.
-
-        Args:
-            source_path: Path to the source file
-            header_data: Optional list of header data to use in filename
-
-        Returns:
-            Path for the output file
-        """
-        # Get the full relative path from the input directory
+    def _create_output_path(self, source_path: Path, table_name: Optional[str] = None, header_data: Optional[List[str]] = None) -> Path:
+        """Create output path preserving input folder structure. Only create subfolder for multi-table files (table_name provided)."""
         relative_path = self._get_relative_path(source_path, self.input_dir)
-
-        # Convert the path to a filename-safe string
-        # Replace path separators and other unsafe characters with underscores
-        path_as_filename = str(relative_path).replace(
-            '/', '_').replace('\\', '_')
-        # Remove the original extension from the path
-        path_as_filename = path_as_filename.rsplit(
-            '.', 1)[0] if '.' in path_as_filename else path_as_filename
-
-        # Clean up any double underscores and ensure it's filename-safe
-        path_as_filename = ''.join(
-            c if c.isalnum() or c in '_-' else '_' for c in path_as_filename)
-        # Remove consecutive underscores
-        while '__' in path_as_filename:
-            path_as_filename = path_as_filename.replace('__', '_')
-        # Remove leading/trailing underscores
-        path_as_filename = path_as_filename.strip('_')
-
-        # If we have header data, use it to create a suffix
-        if header_data:
-            # Join header data with underscores and clean it
-            suffix = '_'.join(header_data)
-            # Replace special characters and spaces
-            suffix = ''.join(
-                c if c.isalnum() or c in '_-' else '_' for c in suffix)
-            # Limit suffix length and clean up
-            suffix = suffix[:50].strip('_-')
-            if suffix:
-                path_as_filename = f"{path_as_filename}_{suffix}"
-                logger.info(f"Using header data for filename: {suffix}")
-
-        # Create the output path directly in the raw directory (no subdirectories)
-        output_path = self.output_dir / f"{path_as_filename}.xlsx"
+        relative_dir = relative_path.with_suffix("")
+        if table_name:
+            # For multi-table files, create a subfolder for the file
+            output_dir = self.output_dir / relative_dir.parent / relative_dir.stem
+            output_dir.mkdir(parents=True, exist_ok=True)
+            base_filename = f"{relative_dir.stem}_{table_name}"
+            output_path = output_dir / f"{base_filename}.xlsx"
+        else:
+            # For single-table files, mirror the input structure, no extra subfolder
+            output_dir = self.output_dir / relative_dir.parent
+            output_dir.mkdir(parents=True, exist_ok=True)
+            base_filename = relative_dir.stem
+            # If header_data is provided, append a suffix
+            if header_data:
+                suffix = '_'.join(header_data)
+                suffix = ''.join(
+                    c if c.isalnum() or c in '_-' else '_' for c in suffix)
+                suffix = suffix[:50].strip('_-')
+                if suffix:
+                    base_filename = f"{base_filename}_{suffix}"
+                    logger.info(f"Using header data for filename: {suffix}")
+            output_path = output_dir / f"{base_filename}.xlsx"
         return output_path
 
-    def save_processed_data(self, data: Dict[str, Any], source_path: Path) -> Optional[Path]:
-        """Save processed data to file.
-
-        Args:
-            data: Processed data to save
-            source_path: Path to the source file
-
-        Returns:
-            Path to the saved file or None if saving failed
-        """
+    def save_processed_data(self, data: Dict[str, Any], source_path: Path) -> Optional[List[Path]]:
+        """Save processed data to file(s), preserving input folder structure. For MDBs, save each table separately."""
         try:
-            # Get header data if available
-            header_data = data.get('header_data')
-            if header_data:
-                logger.info(f"Found header data: {header_data}")
-
-            # Create output path
-            output_path = self._create_output_path(source_path, header_data)
-
-            # Save only the actual data, not the metadata
             actual_data = data['data']
-            if isinstance(actual_data, dict) and 'data' in actual_data:
-                # If the data is nested in a 'data' field, use that
-                actual_data = actual_data['data']
-
-            # Save data using XLSX adapter
-            xlsx_adapter = create_adapter('xlsx', {'path': str(output_path)})
-            xlsx_adapter.save(actual_data, output_path)
-            logger.info(f"Saved processed data to: {output_path}")
-
-            return output_path
-
+            saved_paths = []
+            # Check if this is an MDB with multiple tables
+            if isinstance(actual_data, dict) and 'tables' in actual_data and 'metadata' in actual_data:
+                # Save each table as a separate file
+                for table_name, table_data in actual_data['tables'].items():
+                    output_path = self._create_output_path(
+                        source_path, table_name=table_name)
+                    xlsx_adapter = create_adapter(
+                        'xlsx', {'path': str(output_path)})
+                    xlsx_adapter.save(table_data, output_path)
+                    logger.info(
+                        f"Saved table '{table_name}' to: {output_path}")
+                    saved_paths.append(output_path)
+            else:
+                # For non-MDB, save as before
+                header_data = data.get('header_data')
+                output_path = self._create_output_path(
+                    source_path, header_data=header_data)
+                xlsx_adapter = create_adapter(
+                    'xlsx', {'path': str(output_path)})
+                xlsx_adapter.save(actual_data, output_path)
+                logger.info(f"Saved processed data to: {output_path}")
+                saved_paths.append(output_path)
+            return saved_paths
         except Exception as e:
             logger.error(f"Error saving processed data: {str(e)}")
             return None

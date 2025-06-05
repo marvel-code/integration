@@ -7,6 +7,7 @@ import logging
 import sys
 from pathlib import Path
 from typing import Dict, Any
+from datetime import datetime
 
 from .raw import (
     RawDataProcessor,
@@ -33,6 +34,10 @@ def main() -> None:
 
     input_dir = Path(sys.argv[1])
     output_dir = Path(sys.argv[2])
+
+    # Add timestamped subfolder to output_dir
+    timestamp = datetime.now().strftime('%Y.%m.%d %H:%M:%S')
+    output_dir = output_dir / timestamp
 
     # Initialize processor with validation rules
     processor = RawDataProcessor(

@@ -112,7 +112,7 @@ By default, the script processes files from `data/input` and saves results to `d
 - [x] Source tables saved to raw/ with structure in input.
 - [x] Add extension to the end of output file like "<filename>\_<orig_ext>.xlsx".
 - [ ] Add table name for the file (like mdb) like "<orig*filename>\_<orig_tablename>*<orig_ext>.xlsx"
-- [ ] Output to the folder of launch (e.g. output/YYYY-MM-DD_HH_mm_ss/raw/...)
+- [x] Output to the folder of launch (e.g. output/YYYY.MM.DD HH:mm:ss/raw/...)
 - [ ]
 - [ ]
 - [ ]

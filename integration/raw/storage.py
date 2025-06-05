@@ -44,12 +44,15 @@ class RawDataStorage:
     def _create_output_path(self, source_path: Path, table_name: Optional[str] = None, header_data: Optional[List[str]] = None) -> Path:
         """Create output path preserving input folder structure. Only create subfolder for multi-table files (table_name provided)."""
         relative_path = self._get_relative_path(source_path, self.input_dir)
+        orig_ext = relative_path.suffix.lower().lstrip('.')
         relative_dir = relative_path.with_suffix("")
         if table_name:
             # For multi-table files, create a subfolder for the file
             output_dir = self.output_dir / relative_dir.parent / relative_dir.stem
             output_dir.mkdir(parents=True, exist_ok=True)
             base_filename = f"{relative_dir.stem}_{table_name}"
+            if orig_ext:
+                base_filename = f"{base_filename}_{orig_ext}"
             output_path = output_dir / f"{base_filename}.xlsx"
         else:
             # For single-table files, mirror the input structure, no extra subfolder
@@ -65,6 +68,8 @@ class RawDataStorage:
                 if suffix:
                     base_filename = f"{base_filename}_{suffix}"
                     logger.info(f"Using header data for filename: {suffix}")
+            if orig_ext:
+                base_filename = f"{base_filename}_{orig_ext}"
             output_path = output_dir / f"{base_filename}.xlsx"
         return output_path
 

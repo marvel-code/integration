@@ -53,20 +53,18 @@ class BaseAdapter(ABC):
         """
         pass
 
-    def transform(self, data: List[Table]) -> List[Dict[str, Any]]:
-        """Transform the raw data into a standard format.
+    def transform(self, data: List[Table]) -> List[Table]:
+        """Transform the raw data by adding metadata to each Table object.
 
         Args:
             data: List of Table objects containing the raw data
 
         Returns:
-            List of dictionaries containing the transformed data
+            List of Table objects with updated metadata
         """
-        transformed_data = []
         for table in data:
-            transformed_data.append({
-                'source': self.__class__.__name__,
-                'timestamp': datetime.now().isoformat(),
-                'data': table.as_dicts()
-            })
-        return transformed_data
+            if table.metadata is None:
+                table.metadata = {}
+            table.metadata['source'] = self.__class__.__name__
+            table.metadata['timestamp'] = datetime.now().isoformat()
+        return data

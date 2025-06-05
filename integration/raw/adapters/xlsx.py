@@ -106,10 +106,10 @@ class XLSXAdapter(BaseAdapter):
         return cleaned.strip('-_')
 
     def fetch(self) -> List[Table]:
-        """Fetch data from Excel file.
+        """Fetch data from all sheets in the Excel file.
 
         Returns:
-            List of Table objects containing the Excel data
+            List of Table objects, one for each sheet
 
         Raises:
             FileNotFoundError: If the file doesn't exist
@@ -121,32 +121,38 @@ class XLSXAdapter(BaseAdapter):
 
         try:
             engine = self._get_engine(path)
-            df = pd.read_excel(
+            # Read all sheets
+            all_sheets = pd.read_excel(
                 path,
-                sheet_name=self.config['sheet_name'],
+                sheet_name=None,
                 engine=engine,
                 header=None
             )
-            header_data, table_start_row = self._extract_header_data(df)
-            table_df = df.iloc[table_start_row:].copy()
-            header_row = table_df.dropna(how='all').iloc[0]
-            table_df = table_df.iloc[1:]
-            table_df.columns = header_row
-            table_df = table_df.dropna(how='all').reset_index(drop=True)
-            columns = list(table_df.columns)
-            records = [tuple(row) for row in table_df.values]
-            metadata = {
-                'sheet_name': self.config['sheet_name'],
-                'row_count': len(table_df),
-                'column_count': len(table_df.columns),
-                'file_type': path.suffix.lower(),
-                'engine_used': engine,
-                'table_start_row': table_start_row,
-                'header_data': header_data
-            }
-            table = Table(name=str(self.config.get('sheet_name', 0)),
-                          columns=columns, records=records, metadata=metadata)
-            return [table]
+            tables = []
+            for sheet_name, df in all_sheets.items():
+                header_data, table_start_row = self._extract_header_data(df)
+                table_df = df.iloc[table_start_row:].copy()
+                if table_df.dropna(how='all').empty:
+                    continue  # skip empty sheets
+                header_row = table_df.dropna(how='all').iloc[0]
+                table_df = table_df.iloc[1:]
+                table_df.columns = header_row
+                table_df = table_df.dropna(how='all').reset_index(drop=True)
+                columns = list(table_df.columns)
+                records = [tuple(row) for row in table_df.values]
+                metadata = {
+                    'sheet_name': sheet_name,
+                    'row_count': len(table_df),
+                    'column_count': len(table_df.columns),
+                    'file_type': path.suffix.lower(),
+                    'engine_used': engine,
+                    'table_start_row': table_start_row,
+                    'header_data': header_data
+                }
+                table = Table(name=str(sheet_name), columns=columns,
+                              records=records, metadata=metadata)
+                tables.append(table)
+            return tables
         except Exception as e:
             logger.error(f"Error reading Excel file {path}: {str(e)}")
             raise

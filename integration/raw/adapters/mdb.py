@@ -142,7 +142,7 @@ class MDBAdapter(BaseAdapter):
 
         try:
             # Get list of tables if table not specified
-            if self.config['table'] == 'Table1':
+            if self.config.get('table') is None:
                 tables = self._get_tables(path)
                 if not tables:
                     raise ValueError(f"No tables found in {path}")

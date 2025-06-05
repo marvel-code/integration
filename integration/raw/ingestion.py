@@ -36,41 +36,6 @@ class DataIngestion:
     def __init__(self):
         pass
 
-    @staticmethod
-    def load_json(file_path: Union[str, Path]) -> Dict[str, Any]:
-        """Load data from a JSON file.
-
-        Args:
-            file_path: Path to the JSON file
-
-        Returns:
-            Loaded data
-
-        Raises:
-            FileNotFoundError: If the file doesn't exist
-            json.JSONDecodeError: If the file is not valid JSON
-        """
-        with open(file_path, 'r') as f:
-            return json.load(f)
-
-    @staticmethod
-    def load_csv(file_path: Union[str, Path], delimiter: str = ',') -> List[Dict[str, Any]]:
-        """Load data from a CSV file.
-
-        Args:
-            file_path: Path to the CSV file
-            delimiter: Character used to separate values
-
-        Returns:
-            List of dictionaries containing the CSV data
-
-        Raises:
-            FileNotFoundError: If the file doesn't exist
-        """
-        with open(file_path, 'r') as f:
-            reader = csv.DictReader(f, delimiter=delimiter)
-            return list(reader)
-
     def _get_source_type(self, file_path: Path) -> Optional[str]:
         """Determine the source type based on file extension.
 
@@ -128,11 +93,6 @@ class DataIngestion:
                 'path': str(file_path),
                 'format': source_type
             }
-
-            # Add table name for MDB files if not provided
-            if adapter_type == 'mdb' and 'table' not in adapter_config:
-                # Default to first table in the database
-                adapter_config['table'] = 'Table1'
 
             adapter = create_adapter(adapter_type, adapter_config)
 

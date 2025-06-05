@@ -91,28 +91,3 @@ class RawDataProcessor:
             logger.info(f"  {status}: {count} files")
 
         return results
-
-    def get_stored_data(self, prefix: Optional[str] = None) -> List[Path]:
-        """Get list of stored data files.
-
-        Args:
-            prefix: Optional prefix to filter files
-
-        Returns:
-            List of file paths
-        """
-        return self.storage.get_stored_files(prefix)
-
-    def load_stored_data(self, file_path: Union[str, Path]) -> Dict[str, Any]:
-        """Load data from storage.
-
-        Args:
-            file_path: Path to the stored data file
-
-        Returns:
-            Loaded data
-
-        Raises:
-            FileNotFoundError: If the file doesn't exist
-        """
-        return self.storage.load_stored_data(file_path)

@@ -59,8 +59,9 @@ class MDBAdapter(BaseAdapter):
         """Validate MDB configuration."""
         if 'path' not in self.config:
             raise ValueError("Missing required field: path")
-        if 'table' not in self.config:
-            raise ValueError("Missing required field: table")
+        # Remove the requirement for 'table' field since we now support fetching all tables
+        # if 'table' not in self.config:
+        #     raise ValueError("Missing required field: table")
 
     def _get_tables(self, file_path: Path) -> List[str]:
         """Get list of tables in the MDB file.
@@ -130,7 +131,7 @@ class MDBAdapter(BaseAdapter):
         """Fetch data from MDB file.
 
         Returns:
-            Dictionary containing the MDB data
+            Dictionary containing the MDB data for all tables.
 
         Raises:
             FileNotFoundError: If the file doesn't exist
@@ -141,31 +142,49 @@ class MDBAdapter(BaseAdapter):
             raise FileNotFoundError(f"File not found: {path}")
 
         try:
-            # Get list of tables if table not specified
-            if self.config.get('table') is None:
-                tables = self._get_tables(path)
-                if not tables:
-                    raise ValueError(f"No tables found in {path}")
-                self.config['table'] = tables[0]
-                logger.info(f"Using first table found: {self.config['table']}")
+            tables = self._get_tables(path)
+            if not tables:
+                raise ValueError(f"No tables found in {path}")
 
-            # Export table to CSV
-            csv_data = self._export_table_to_csv(path, self.config['table'])
+            logger.info(f"Fetching all tables: {', '.join(tables)}")
+            tables_data = {}
 
-            # Parse CSV data
-            reader = csv.DictReader(io.StringIO(csv_data))
-            records = list(reader)
-            columns = reader.fieldnames or []
+            for table_name in tables:
+                try:
+                    # Export table to CSV
+                    csv_data = self._export_table_to_csv(path, table_name)
 
-            # Transform data
+                    # Parse CSV data
+                    reader = csv.DictReader(io.StringIO(csv_data))
+                    records = list(reader)
+                    columns = reader.fieldnames or []
+
+                    # Store table data
+                    tables_data[table_name] = {
+                        'columns': columns,
+                        'records': records,
+                        'metadata': {
+                            'table_name': table_name,
+                            'row_count': len(records),
+                            'column_count': len(columns),
+                            'file_type': path.suffix.lower()
+                        }
+                    }
+                    logger.info(
+                        f"Fetched table '{table_name}': {len(records)} rows, {len(columns)} columns")
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to fetch table '{table_name}': {str(e)}")
+                    continue
+
+            # Transform data for all tables
             raw_data = {
-                'columns': columns,
-                'records': records,
+                'tables': tables_data,
                 'metadata': {
-                    'table_name': self.config['table'],
-                    'row_count': len(records),
-                    'column_count': len(columns),
-                    'file_type': path.suffix.lower()
+                    'file_path': str(path),
+                    'file_type': path.suffix.lower(),
+                    'total_tables': len(tables_data),
+                    'table_names': list(tables_data.keys())
                 }
             }
 

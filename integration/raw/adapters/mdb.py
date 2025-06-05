@@ -10,10 +10,23 @@ import pandas as pd
 import subprocess
 import csv
 import io
+from dataclasses import dataclass
 
-from .base import BaseAdapter
+from .base import BaseAdapter, Table
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class Table:
+    name: str
+    columns: List[str]
+    records: List[Any]  # Each record can be a tuple or a dataclass, not a dict
+    metadata: dict = None
+
+    def as_dicts(self) -> List[dict]:
+        """Return records as a list of dicts mapping columns to values."""
+        return [dict(zip(self.columns, record)) for record in self.records]
 
 
 class MDBAdapter(BaseAdapter):
@@ -127,16 +140,8 @@ class MDBAdapter(BaseAdapter):
             logger.error(error_msg)
             raise RuntimeError(error_msg) from e
 
-    def fetch(self) -> Dict[str, Any]:
-        """Fetch data from MDB file.
-
-        Returns:
-            Dictionary containing the MDB data for all tables.
-
-        Raises:
-            FileNotFoundError: If the file doesn't exist
-            RuntimeError: If mdbtools commands fail
-        """
+    def fetch(self) -> List[Table]:
+        """Fetch data from MDB file and return a list of Table objects."""
         path = Path(self.config['path'])
         if not path.exists():
             raise FileNotFoundError(f"File not found: {path}")
@@ -147,29 +152,25 @@ class MDBAdapter(BaseAdapter):
                 raise ValueError(f"No tables found in {path}")
 
             logger.info(f"Fetching all tables: {', '.join(tables)}")
-            tables_data = {}
+            table_objs = []
 
             for table_name in tables:
                 try:
-                    # Export table to CSV
                     csv_data = self._export_table_to_csv(path, table_name)
-
-                    # Parse CSV data
-                    reader = csv.DictReader(io.StringIO(csv_data))
-                    records = list(reader)
-                    columns = reader.fieldnames or []
-
-                    # Store table data
-                    tables_data[table_name] = {
-                        'columns': columns,
-                        'records': records,
-                        'metadata': {
-                            'table_name': table_name,
-                            'row_count': len(records),
-                            'column_count': len(columns),
-                            'file_type': path.suffix.lower()
-                        }
+                    reader = csv.reader(io.StringIO(csv_data))
+                    rows = list(reader)
+                    if not rows:
+                        continue
+                    columns = rows[0]
+                    records = [tuple(row) for row in rows[1:]]
+                    metadata = {
+                        'table_name': table_name,
+                        'row_count': len(records),
+                        'column_count': len(columns),
+                        'file_type': path.suffix.lower()
                     }
+                    table_objs.append(
+                        Table(name=table_name, columns=columns, records=records, metadata=metadata))
                     logger.info(
                         f"Fetched table '{table_name}': {len(records)} rows, {len(columns)} columns")
                 except Exception as e:
@@ -177,18 +178,7 @@ class MDBAdapter(BaseAdapter):
                         f"Failed to fetch table '{table_name}': {str(e)}")
                     continue
 
-            # Transform data for all tables
-            raw_data = {
-                'tables': tables_data,
-                'metadata': {
-                    'file_path': str(path),
-                    'file_type': path.suffix.lower(),
-                    'total_tables': len(tables_data),
-                    'table_names': list(tables_data.keys())
-                }
-            }
-
-            return self.transform(raw_data)
+            return table_objs
 
         except (subprocess.CalledProcessError, RuntimeError) as e:
             logger.error(f"Error reading MDB file {path}: {str(e)}")

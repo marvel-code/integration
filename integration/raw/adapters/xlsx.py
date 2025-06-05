@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 import re
 
-from .base import BaseAdapter
+from .base import BaseAdapter, Table
 
 logger = logging.getLogger(__name__)
 
@@ -105,11 +105,11 @@ class XLSXAdapter(BaseAdapter):
         cleaned = re.sub(r'[-\s]+', '_', cleaned)
         return cleaned.strip('-_')
 
-    def fetch(self) -> Dict[str, Any]:
+    def fetch(self) -> List[Table]:
         """Fetch data from Excel file.
 
         Returns:
-            Dictionary containing the Excel data
+            List of Table objects containing the Excel data
 
         Raises:
             FileNotFoundError: If the file doesn't exist
@@ -120,40 +120,22 @@ class XLSXAdapter(BaseAdapter):
             raise FileNotFoundError(f"File not found: {path}")
 
         try:
-            # Determine the appropriate engine
             engine = self._get_engine(path)
-
-            # Read Excel file
             df = pd.read_excel(
                 path,
                 sheet_name=self.config['sheet_name'],
                 engine=engine,
-                header=None  # Don't use first row as header
+                header=None
             )
-
-            # Extract header data and find table start
             header_data, table_start_row = self._extract_header_data(df)
-
-            # Skip header rows and get table data
             table_df = df.iloc[table_start_row:].copy()
-
-            # Use first non-empty row as header
             header_row = table_df.dropna(how='all').iloc[0]
-            table_df = table_df.iloc[1:]  # Skip the header row
+            table_df = table_df.iloc[1:]
             table_df.columns = header_row
-
-            # Drop empty rows and reset index
             table_df = table_df.dropna(how='all').reset_index(drop=True)
-
-            # Convert DataFrame to dictionary
-            raw_data = {
-                'columns': table_df.columns.tolist(),
-                'records': table_df.to_dict('records'),
-                'header_data': header_data
-            }
-
-            # Add metadata
-            raw_data['metadata'] = {
+            columns = list(table_df.columns)
+            records = [tuple(row) for row in table_df.values]
+            metadata = {
                 'sheet_name': self.config['sheet_name'],
                 'row_count': len(table_df),
                 'column_count': len(table_df.columns),
@@ -162,9 +144,9 @@ class XLSXAdapter(BaseAdapter):
                 'table_start_row': table_start_row,
                 'header_data': header_data
             }
-
-            return self.transform(raw_data)
-
+            table = Table(name=str(self.config.get('sheet_name', 0)),
+                          columns=columns, records=records, metadata=metadata)
+            return [table]
         except Exception as e:
             logger.error(f"Error reading Excel file {path}: {str(e)}")
             raise

@@ -47,7 +47,7 @@ def main() -> None:
 
     try:
         # Process all files
-        results = processor.process()
+        processor.process()
     except Exception as e:
         logger.error(f"Error processing data: {str(e)}")
         sys.exit(1)
